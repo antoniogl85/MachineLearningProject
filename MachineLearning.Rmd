@@ -1,0 +1,78 @@
+---
+output:
+  html_document: default
+---
+
+Machine Learning Project
+==================================
+
+## Summary
+There are certain devices that allows us to collect a large amount of data about personal activity. In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants and build a prediction algorithm that predict the manner in which the did the exercise.
+
+## Data loading and cleaning
+Data can be downloaded from this [link](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv).
+
+Firstly we read the data from the supplied .csv file.
+```{r cache=TRUE}
+data <- read.csv("pml-training.csv")
+dim(data)
+```
+Data has 19622 rows and 160 columns. We do not show the first rows since it would be necessary a lot of space but if you have a look at the data you would realize that a lot of columns are void or contain NA's. We are going to delete these columns as they can not be used to predict.
+
+```{r cache=TRUE}
+ind <- !is.na(data[1, ])
+data <- data[, ind]
+ind <- data[1, ] != ""
+data <- data[, ind]
+dim(data)
+```
+Now we have a tidy dataset we can work with. We have reduce the number of variables from 160 to 60.
+
+## Algorithm training
+
+In this section we are going to train our algorithm in order to be able to predict the type of exercise (codified in the variable *classe*) from the other variables.
+
+We are going to use cross validation to get a good approximation of the accuracy of our prediction algorithm. We are going to create 5 k-folds using the function *createFolds* of the *caret* package. This function create k groups of the data set containing (k-1)/k*100% of the total data. In our case the 5 groups are going to contain the 80% of the data and will be used as training sets. The remaining 20% will be used as testing set.
+```{r cache=TRUE}
+require(caret)
+set.seed(1985)
+k <- 5
+folds <- createFolds(data$classe, k = k, list = T, returnTrain = T)
+sapply(folds, length)
+```
+
+For each k-fold we train our algorithm. We have discarded the first seven columns as they contain general information about the user or the time and we do not think that it would be useful to predict the type of exercise. We have decided to use the function *randomForest* of the *randomForest* package instead of the *train* function of the *caret* package as it seems to be much faster while the result it is the same.
+
+After training the algorithm, we use our model to predict in the testing set, and then we check the number of correct outcomes to calculate the accuracy of our model.
+```{r cache=TRUE}
+require(randomForest)
+accuracy <- c()
+for (i in 1:k){
+    training <- data[folds[[i]], -(1:7)]
+    modFit <- randomForest(classe ~ ., data = training)
+    testing <- data[-folds[[i]], -(1:7)]
+    pred <- predict(modFit, testing)
+    accuracy <- cbind(accuracy, sum(pred == testing$classe)/length(pred))
+}
+```
+
+Once we have finished, we have 5 values of accuracy. We can average them and we can take it as a good estimation of the accuracy of our prediction algorithm. As we can see, it is a value very high, greater than 99.5%.
+```{r}
+print(accuracy)
+p <- mean(accuracy)
+print(p)
+```
+
+In the second part of this assigment we have to apply the algorithm we have just built to predict 20 test cases. We are going to calculate the probability of guessing all of them correctly, using the value of the accuracy we have just calculated.
+
+```{r}
+dbinom(20, 20, p)
+```
+
+
+
+
+
+
+
+
